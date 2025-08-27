@@ -1,0 +1,68 @@
+# ─────────────────────────────
+# Visual Studio / .NET
+# ─────────────────────────────
+.vs/
+*.user
+*.suo
+*.sln.docstates
+*.userosscache
+
+# Build outputs
+**/bin/
+**/obj/
+**/out/
+**/Debug/
+**/Release/
+**/x64/
+**/x86/
+**/publish/
+
+# Test artifacts
+TestResult*/
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+coverage*.json
+coverage*.xml
+coverage*.info
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+
+# Publish profiles (user-specific)
+*.pubxml.user
+
+# ReSharper / Rider / JetBrains
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+.idea/
+*.sln.iml
+
+# MSBuild logs
+*.binlog
+
+# ─────────────────────────────
+# Config / Secrets (mantén solo ejemplos)
+# ─────────────────────────────
+.env
+.env.*
+!*.example
+secrets.json
+**/secrets.json
+appsettings.*.local.json
+appsettings.Local.json
+appsettings.Development.local.json
+# (Se permiten appsettings.*.json normales en el repo)
+
+# ─────────────────────────────
+# Docker
+# ─────────────────────────────
+**/.docker/
+*.pid
+**/docker/*/init/*.bak
+**/docker/*/init/*.tmp
