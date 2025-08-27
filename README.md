@@ -48,6 +48,6 @@ Colecciones y validadores ($jsonSchema) definidos en docker/mongo/init/00-init-r
 
 🚀 Ejecución con Docker 
 - docker compose up -d --build
-- Mongo-Express: http://127.0.0.1:8085 (admin/admin)
+- Mongo-Express: http://127.0.0.1:8081 (admin/admin)
 - API: http://localhost:5153
 - Swagger: http://localhost:5153/swagger
