@@ -6,7 +6,7 @@ API para consultar propiedades almacenadas en MongoDB con filtros por nombre, di
 - Backend: ASP.NET Core 8 (C#)
 - DB: MongoDB 7
 - UI DB: mongo-express (admin web)
-- Tests: XUnit 
+- Tests: NUnit 
 - Contenedores: Docker / Docker Compose
 - IDE: Visual Studio 2022
 
@@ -15,7 +15,7 @@ API para consultar propiedades almacenadas en MongoDB con filtros por nombre, di
 Clean Architecture / Ports & Adapters
 
 - RealEstate.Api                   → Presentación (Controllers, Swagger, CORS, Health)
-- RealEstate.Application   → Casos de uso / Servicios / Interfaces (puertos)
+- RealEstate.Application   		   → Casos de uso / Servicios / Interfaces (puertos)
 - RealEstate.Contracts             → DTOs / Requests / Responses (contratos)
 - RealEstate.Domain                → Entidades de Dominio 
 - RealEstate.Infraestructure.Mongo → Adaptador MongoDB (Contexto, Repositorio, Índices)
