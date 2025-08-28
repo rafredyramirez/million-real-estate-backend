@@ -33,29 +33,29 @@ services:
       ME_CONFIG_BASICAUTH_PASSWORD: "admin"
     restart: unless-stopped
 
-  api:
-    build:
-      context: .
-      dockerfile: RealEstate.Api/Dockerfile
-    container_name: realestate-api
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      # Dentro del compose, el host de Mongo es "mongo"
-      Mongo__ConnectionString: "mongodb://realestate_app:changeme@mongo:27017/realestate?authSource=realestate&authMechanism=SCRAM-SHA-256"
-      Mongo__Database: "realestate"
-      # (Opcional) CORS para tu front
-      FRONTEND_URL: "http://localhost:5173"
-    ports:
-      - "5153:8080"   # API: http://localhost:5153
-    depends_on:
-      mongo:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL","wget -qO- http://localhost:8080/healthz || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
-    restart: unless-stopped
+  # api:
+    # build:
+      # context: .
+      # dockerfile: RealEstate.Api/Dockerfile
+    # container_name: realestate-api
+    # environment:
+      # ASPNETCORE_ENVIRONMENT: Development
+      # # Dentro del compose, el host de Mongo es "mongo"
+      # Mongo__ConnectionString: "mongodb://realestate_app:changeme@mongo:27017/realestate?authSource=realestate&authMechanism=SCRAM-SHA-256"
+      # Mongo__Database: "realestate"
+      # # (Opcional) CORS para tu front
+      # FRONTEND_URL: "http://localhost:5173"
+    # ports:
+      # - "5153:8080"   # API: http://localhost:5153
+    # depends_on:
+      # mongo:
+        # condition: service_healthy
+    # healthcheck:
+      # test: ["CMD-SHELL","wget -qO- http://localhost:8080/healthz || exit 1"]
+      # interval: 10s
+      # timeout: 3s
+      # retries: 10
+    # restart: unless-stopped
 
 volumes:
   mongo_data:
