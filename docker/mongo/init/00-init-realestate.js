@@ -14,7 +14,7 @@
   try {
     dbReal.createUser({
       user: "realestate_app",
-      pwd: "changeme",
+      pwd: "123456",
       roles: [{ role: "readWrite", db: "realestate" }]
     });
     log("Usuario realestate_app creado");
