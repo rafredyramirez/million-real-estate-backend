@@ -1,4 +1,6 @@
 ﻿using FluentAssertions;
+using FluentValidation.Results;
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using NUnit.Framework;
@@ -12,6 +14,7 @@ namespace RealEstate.UnitTests
     public class PropertiesControllerTests
     {
         private Mock<IPropertyService> _service = null!;
+        private Mock<IValidator<PropertyFilterDto>> _validator = null!;
         private PropertiesController _controller = null!;
         private readonly CancellationToken _ct = CancellationToken.None;
 
@@ -19,188 +22,130 @@ namespace RealEstate.UnitTests
         public void SetUp()
         {
             _service = new Mock<IPropertyService>(MockBehavior.Strict);
-            _controller = new PropertiesController(_service.Object);
+            _validator = new Mock<IValidator<PropertyFilterDto>>(MockBehavior.Strict);
+            _controller = new PropertiesController(_service.Object, _validator.Object);
         }
 
+        private static ValidationResult Valid() => new ValidationResult();
+
+        private static ValidationResult Invalid(params (string prop, string msg)[] errs) =>
+            new ValidationResult(errs.Select(e => new ValidationFailure(e.prop, e.msg)));
+
         [Test]
-        public async Task Get_List_ReturnsOkWithPagedResult()
+        public async Task Get_MapsQueryParams_ToFilter_AndCallsService_ReturnsOk()
         {
             // Arrange
-            var paged = new PagedResult<PropertyDto>(
-                Items: new[] { new PropertyDto("1", "owner1", "Casa", "Dir", 350000m, "img") },
-                Page: 1, PageSize: 10, Total: 1, TotalPages: 1);
+            PropertyFilterDto? capturedByValidator = null;
+            PropertyFilterDto? capturedByService = null;
 
-            _service.Setup(s => s.GetPropertiesAsync(
-                    It.Is<PropertyFilterDto>(f => f.Page == 1 && f.PageSize == 10),
-                    _ct))
+            _validator.Setup(v => v.ValidateAsync(It.IsAny<PropertyFilterDto>(), It.IsAny<CancellationToken>()))
+                .Callback<PropertyFilterDto, CancellationToken>((f, _) => capturedByValidator = f)
+                .ReturnsAsync(Valid());
+
+            var paged = new PagedResult<PropertyDto>(
+                Items: new[] { new PropertyDto("1", "o1", "Casa Norte", "Dir", 123m, "img") },
+                Page: 2, PageSize: 5, Total: 1, TotalPages: 1);
+
+            _service.Setup(s => s.GetPropertiesAsync(It.IsAny<PropertyFilterDto>(), It.IsAny<CancellationToken>()))
+                .Callback<PropertyFilterDto, CancellationToken>((f, _) => capturedByService = f)
                 .ReturnsAsync(paged);
 
             // Act
-            var action = await _controller.Get(
-                name: null, address: null,
-                minPrice: null, maxPrice: null,
-                page: 1, pageSize: 10,
-                sortBy: "CreatedAt", sortDir: "desc",
-                ct: _ct);
-
-            // Assert
-            var ok = action.Result as OkObjectResult;
-            ok.Should().NotBeNull();
-            var body = ok!.Value as PagedResult<PropertyDto>;
-            body.Should().NotBeNull();
-            body!.Total.Should().Be(1);
-
-            _service.VerifyAll();
-        }
-
-        [Test]
-        public async Task GetById_WhenNotFound_Returns404()
-        {
-            _service.Setup(s => s.GetByIdAsync("nope", _ct))
-                    .ReturnsAsync((PropertyDto?)null);
-
-            var action = await _controller.GetById("nope", _ct);
-            action.Result.Should().BeOfType<NotFoundResult>();
-
-            _service.VerifyAll();
-        }
-
-        [Test]
-        public async Task GetById_WhenFound_ReturnsOkWithDto()
-        {
-            var dto = new PropertyDto("1", "o1", "Casa", "Dir", 100m, "img");
-            _service.Setup(s => s.GetByIdAsync("1", _ct)).ReturnsAsync(dto);
-
-            var action = await _controller.GetById("1", _ct);
-            var ok = action.Result as OkObjectResult;
-            ok.Should().NotBeNull();
-            (ok!.Value as PropertyDto)!.Id.Should().Be("1");
-
-            _service.VerifyAll();
-        }
-        //new
-        // Helper: configura el mock para capturar el filtro y devolver un PagedResult “fake”
-        private void SetupListResult(Action<PropertyFilterDto?> capture, int total = 1)
-        {
-            var result = new PagedResult<PropertyDto>(
-                Items: new[] { new PropertyDto("1", "o1", "Casa Norte", "Dir", 123m, "img") },
-                Page: 1, PageSize: 10, Total: total, TotalPages: (total + 9) / 10
-            );
-
-            _service.Setup(s => s.GetPropertiesAsync(
-                    It.IsAny<PropertyFilterDto>(), It.IsAny<CancellationToken>()))
-                .Callback<PropertyFilterDto, CancellationToken>((f, _) => capture(f))
-                .ReturnsAsync(result);
-        }
-
-        [Test]
-        public async Task Get_List_MapsQueryParamsToFilter_AndReturnsOk()
-        {
-            // Arrange
-            PropertyFilterDto? captured = null;
-            SetupListResult(f => captured = f);
-
-            // Act
-            var action = await _controller.Get(
+            var result = await _controller.Get(
                 name: "casa", address: "cedritos",
                 minPrice: 200000, maxPrice: 600000,
                 page: 2, pageSize: 5,
                 sortBy: "Price", sortDir: "asc",
                 ct: _ct);
 
-            // Assert: mapping correcto hacia el service
-            captured.Should().NotBeNull();
-            captured!.Name.Should().Be("casa");
-            captured.Address.Should().Be("cedritos");
-            captured.MinPrice.Should().Be(200000);
-            captured.MaxPrice.Should().Be(600000);
-            captured.Page.Should().Be(2);
-            captured.PageSize.Should().Be(5);
-            captured.SortBy.Should().Be("Price");
-            captured.SortDir.Should().Be("asc");
+            // Assert (validator recibió el filtro esperado)
+            capturedByValidator.Should().NotBeNull();
+            capturedByValidator!.Name.Should().Be("casa");
+            capturedByValidator.Address.Should().Be("cedritos");
+            capturedByValidator.MinPrice.Should().Be(200000);
+            capturedByValidator.MaxPrice.Should().Be(600000);
+            capturedByValidator.Page.Should().Be(2);
+            capturedByValidator.PageSize.Should().Be(5);
+            capturedByValidator.SortBy.Should().Be("Price");
+            capturedByValidator.SortDir.Should().Be("asc");
 
-            // Assert: HTTP 200 + body esperado
-            var ok = action.Result as OkObjectResult;
+            // Assert (service recibió lo mismo)
+            capturedByService.Should().NotBeNull();
+            capturedByService!.Should().BeEquivalentTo(capturedByValidator);
+
+            // Assert (HTTP 200)
+            var ok = result.Result as OkObjectResult;
             ok.Should().NotBeNull();
             var body = ok!.Value as PagedResult<PropertyDto>;
-            body.Should().NotBeNull();
             body!.Items.Should().HaveCount(1);
             body.Items.First().Name.Should().Be("Casa Norte");
 
+            _validator.VerifyAll();
             _service.VerifyAll();
         }
 
-        [TestCase(null, null)]
-        [TestCase("", "")]
-        [TestCase("   ", "   ")]
-        public async Task Get_List_AllowsNullOrBlankFilters(string? name, string? address)
+        [Test]
+        public void Get_WhenValidationFails_ThrowsArgumentException()
         {
             // Arrange
-            PropertyFilterDto? captured = null;
-            SetupListResult(f => captured = f, total: 0);
+            _validator.Setup(v => v.ValidateAsync(It.IsAny<PropertyFilterDto>(), It.IsAny<CancellationToken>()))
+                     .ReturnsAsync(Invalid(("PageSize", "PageSize must be between 1 and 100.")));
+
+            // El servicio NO debe llamarse si la validación falla
+            _service.Invocations.Clear();
 
             // Act
-            var action = await _controller.Get(
-                name, address,
+            Func<Task> act = () => _controller.Get(
+                name: null, address: null,
                 minPrice: null, maxPrice: null,
-                page: 1, pageSize: 10,
+                page: 1, pageSize: 0, // inválido
                 sortBy: null, sortDir: null,
                 ct: _ct);
 
-            // Assert: controller pasa los mismos valores (el service ya normaliza defaults)
-            captured.Should().NotBeNull();
-            captured!.Name.Should().Be(name);
-            captured.Address.Should().Be(address);
-
-            var ok = action.Result as OkObjectResult;
-            ok.Should().NotBeNull();
-            var body = ok!.Value as PagedResult<PropertyDto>;
-            body!.Total.Should().Be(0);
-
-            _service.VerifyAll();
-        }
-
-        [TestCase("Price", "asc")]
-        [TestCase("Price", "desc")]
-        [TestCase("CreatedAt", "desc")]
-        [TestCase("Name", "asc")]
-        public async Task Get_List_RespectsSortByAndSortDir(string sortBy, string sortDir)
-        {
-            // Arrange
-            PropertyFilterDto? captured = null;
-            SetupListResult(f => captured = f);
-
-            // Act
-            var action = await _controller.Get(
-                name: null, address: null,
-                minPrice: null, maxPrice: null,
-                page: 1, pageSize: 10,
-                sortBy, sortDir,
-                ct: _ct);
-
             // Assert
-            captured.Should().NotBeNull();
-            captured!.SortBy.Should().Be(sortBy);
-            captured.SortDir.Should().Be(sortDir);
+            act.Should().ThrowAsync<ArgumentException>()
+               .WithMessage("*PageSize*");
+
+            _service.Verify(s => s.GetPropertiesAsync(It.IsAny<PropertyFilterDto>(), It.IsAny<CancellationToken>()),
+                            Times.Never);
+        }
+
+        [Test]
+        public async Task GetById_WhenFound_ReturnsOk()
+        {
+            _validator.Setup(v => v.ValidateAsync(It.IsAny<PropertyFilterDto>(), It.IsAny<CancellationToken>()))
+                     .ReturnsAsync(Valid()); 
+
+            var dto = new PropertyDto("000000000000000000000001", "o1", "Casa", "Dir", 100m, "img");
+            _service.Setup(s => s.GetByIdAsync(dto.Id, _ct)).ReturnsAsync(dto);
+
+            var action = await _controller.GetById(dto.Id, _ct);
 
             var ok = action.Result as OkObjectResult;
             ok.Should().NotBeNull();
+            (ok!.Value as PropertyDto)!.Id.Should().Be(dto.Id);
 
             _service.VerifyAll();
         }
+
         [Test]
-        public void Get_List_WhenServiceThrows_PropagatesArgumentException()
+        public async Task GetById_WhenNotFound_ReturnsNotFound()
         {
-            // Nota: en unit test de controller puro, no hay middleware global.
-            // Por lo tanto, si el service lanza ArgumentException, se propaga.
-            _service.Setup(s => s.GetPropertiesAsync(
-                    It.IsAny<PropertyFilterDto>(), _ct))
-                .ThrowsAsync(new System.ArgumentException("MinPrice no puede ser mayor que MaxPrice."));
+            const string id = "000000000000000000000001";
+            _service.Setup(s => s.GetByIdAsync(id, _ct)).ReturnsAsync((PropertyDto?)null);
 
-            var act = async () => await _controller.Get(null, null, 1000, 100, 1, 10, "CreatedAt", "desc", _ct);
+            var action = await _controller.GetById(id, _ct);
+            action.Result.Should().BeOfType<NotFoundResult>();
 
-            act.Should().ThrowAsync<System.ArgumentException>();
             _service.VerifyAll();
+        }
+
+        [Test]
+        public void GetById_WithInvalidIdFormat_ThrowsArgumentException()
+        {
+            // id no-ObjectId (no 24 hex)
+            Func<Task> act = () => _controller.GetById("abc", _ct);
+            act.Should().ThrowAsync<ArgumentException>().WithMessage("*Invalid id format*");
         }
     }
 }

@@ -1,13 +1,15 @@
+version: "3.9"
+
 services:
   mongo:
     image: mongo:7
-    container_name: mongo
+    container_name: realestate-mongo
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: admin
-      MONGO_INITDB_DATABASE: admin
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
       interval: 5s
@@ -15,47 +17,57 @@ services:
       retries: 20
     volumes:
       - mongo_data:/data/db
-      # Carpeta con ambos scripts (00- estructura, 10- seed extra)
       - ./docker/mongo/init:/docker-entrypoint-initdb.d:ro
     restart: unless-stopped
+    networks:
+      - realestate_net
 
   mongo-express:
     image: mongo-express:latest
-    container_name: mongo-express
+    container_name: realestate-mongo-express
     depends_on:
       mongo:
         condition: service_healthy
     ports:
       - "127.0.0.1:8081:8081"
     environment:
-      ME_CONFIG_MONGODB_URL: "mongodb://admin:admin@mongo:27017/?authSource=admin"
-      ME_CONFIG_BASICAUTH_USERNAME: "admin"
-      ME_CONFIG_BASICAUTH_PASSWORD: "admin"
+      ME_CONFIG_MONGODB_URL: "mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/?authSource=admin"
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     restart: unless-stopped
+    networks:
+      - realestate_net
 
-  # api:
-    # build:
-      # context: .
-      # dockerfile: RealEstate.Api/Dockerfile
-    # container_name: realestate-api
-    # environment:
-      # ASPNETCORE_ENVIRONMENT: Development
-      # # Dentro del compose, el host de Mongo es "mongo"
-      # Mongo__ConnectionString: "mongodb://realestate_app:changeme@mongo:27017/realestate?authSource=realestate&authMechanism=SCRAM-SHA-256"
-      # Mongo__Database: "realestate"
-      # # (Opcional) CORS para tu front
-      # FRONTEND_URL: "http://localhost:5173"
-    # ports:
-      # - "5153:8080"   # API: http://localhost:5153
-    # depends_on:
-      # mongo:
-        # condition: service_healthy
-    # healthcheck:
-      # test: ["CMD-SHELL","wget -qO- http://localhost:8080/healthz || exit 1"]
-      # interval: 10s
-      # timeout: 3s
-      # retries: 10
-    # restart: unless-stopped
+  api:
+    build:
+      context: .
+      dockerfile: RealEstate.Api/Dockerfile
+    container_name: realestate-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT}
+      Mongo__User: ${MONGO_USER}
+      Mongo__Password: ${MONGO_PASSWORD}
+      Mongo__Host: ${MONGO_HOST}
+      Mongo__Port: ${MONGO_PORT}
+      Mongo__Database: ${MONGO_DATABASE}
+      FRONTEND_URL: ${FRONTEND_URL}
+    ports:            
+      - "5153:8080"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL","curl -f http://localhost:8080/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - realestate_net
 
 volumes:
   mongo_data:
+
+networks:
+  realestate_net:
+    driver: bridge

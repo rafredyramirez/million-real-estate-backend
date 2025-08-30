@@ -45,13 +45,12 @@ namespace RealEstate.Api.Middlewares
                 Detail = detail,
                 Instance = ctx.Request?.Path.Value
             };
-
             pd.Extensions["traceId"] = ctx.TraceIdentifier;
 
-            ctx.Response.ContentType = "application/problem+json";
             ctx.Response.StatusCode = status;
 
-            return ctx.Response.WriteAsJsonAsync(pd);
+            return Results.Problem(title: title, detail: detail, statusCode: status)
+              .ExecuteAsync(ctx);
         }
     }
 }

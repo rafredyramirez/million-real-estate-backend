@@ -7,7 +7,7 @@ using RealEstate.Contracts.Dtos;
 namespace RealEstate.Api.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     public class PropertiesController : ControllerBase
     {
         private readonly IPropertyService _service;

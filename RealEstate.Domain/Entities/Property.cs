@@ -18,6 +18,6 @@ namespace RealEstate.Domain.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        [BsonIgnoreIfDefault] public string? ImageUrl { get; set; } // se llena con $lookup
+        [BsonIgnoreIfDefault] public string? ImageUrl { get; set; }
     }
 }

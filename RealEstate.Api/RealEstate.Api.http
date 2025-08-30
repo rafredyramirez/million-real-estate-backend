@@ -1,6 +1,23 @@
 @RealEstate.Api_HostAddress = http://localhost:5153
+@CorrelationId = demo-123
 
-GET {{RealEstate.Api_HostAddress}}/weatherforecast/
+### Health
+GET {{RealEstate.Api_HostAddress}}/healthz
+X-Correlation-ID: {{CorrelationId}}
 Accept: application/json
 
-###
+### Listado de properties
+GET {{RealEstate.Api_HostAddress}}/Properties?name=casa&address=cedritos&minPrice=100000&maxPrice=800000&page=1&pageSize=10&sortBy=CreatedAt&sortDir=desc
+X-Correlation-ID: {{CorrelationId}}
+Accept: application/json
+
+### Get property by id
+@PropId = 68b322f02e19473bb189b03e
+GET {{RealEstate.Api_HostAddress}}/Properties/{{PropId}}
+X-Correlation-ID: {{CorrelationId}}
+Accept: application/json
+
+### Readiness (ping a Mongo)
+GET {{RealEstate.Api_HostAddress}}/readyz
+X-Correlation-ID: {{CorrelationId}}
+Accept: application/json
